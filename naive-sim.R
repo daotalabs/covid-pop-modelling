@@ -61,3 +61,22 @@ naive.mod3 <- SPAS::SPAS.fit.model(
 SPAS.print.model(naive.mod3)
 
 #################
+# Naive 4
+# s = 2, t = 3
+# n's = 10,000 (number of animals available for sampling in each of 3 strata)
+# psi1 = 0.2, psi2 = psi3 = 0.1 (capture prob. in each of 3 strata)
+naive.data4.csv <- textConnection("
+400,   200,  200, 1200
+0  ,   100,  100,  800
+1600, 1700, 1700,    0")
+naive.data4 <- as.matrix(read.csv(naive.data4.csv, header = FALSE))
+
+naive.mod4 <- SPAS::SPAS.fit.model(
+  naive.data4,
+  model.id = "Naive data 4 no pooling",
+  row.pool.in = 1:2,
+  col.pool.in = 1:3
+)
+SPAS.print.model(naive.mod4)
+
+#################
