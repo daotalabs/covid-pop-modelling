@@ -7,7 +7,7 @@ library(rIntervalTree)
 # s - number of tagging strata;
 # t - number of recovery strata (t >= s);
 # Ns - vector of length s contains the fish population available in each tagging stratum;
-# cap_prob - vector of length s contains the capture probabilities in each recovery stratum.
+# cap_prob - vector of length s contains the capture probabilities in each recovery stratum, cumsum(cap_prob) =< 1.
 #
 # Output:
 # SPAS.print.model output
@@ -22,7 +22,7 @@ spas_pop_sim <- function(Ns, s, t, cap_prob) {
   validateInput(Ns, s, t, cap_prob)
   
   # build interval tree of capture probabilities, will use later for allocation of recovered fish
-  prob_tree <- buildIntervalTree(cap_prob)
+  prob_tree <- buildIntervalTree(cap_prob, s)
   
   # structures to store numbers for SPAS table
   tagged_no <- 1:s
@@ -78,23 +78,23 @@ spas_pop_sim <- function(Ns, s, t, cap_prob) {
   
   # construct data table for SPAS 
   
-  result <- NULL
-  result$tagged_no <- tagged_no
-  result$m_table <- m_table
-  result$untagged_no <- untagged_no
-  result$not_rec <- not_rec
-  result$CH <- CH
+  # result <- NULL
+  # result$tagged_no <- tagged_no
+  # result$m_table <- m_table
+  # result$untagged_no <- untagged_no
+  # result$not_rec <- not_rec
+  # result$CH <- CH
   untagged_no <- c(untagged_no, NA)
   final_table <- cbind(m_table, not_rec)
   colnames(final_table)[4] <- 'X4'
   final_table <- rbind(final_table, untagged_no)
-  result$final_table <- final_table
-  
-  return(result)
+  # result$final_table <- final_table
+  # 
+  # return(result)
   
   # run SPAS
-  # printModel <- fitSPAS(s, t, final_table)
-  # return(printModel)
+  printModel <- fitSPAS(s, t, final_table)
+  return(printModel)
 }
 
 # fit SPAS model no pooling
@@ -111,19 +111,22 @@ fitSPAS <- function(s, t, data_table) {
 
 # TODO: make sure inputs are correct
 validateInput <- function(Ns, s, t, cap_prob) {
-  print('Validated.')
   # length(Ns) == s
   # s =< t
   # length(cap_prob) == s
+  # cumsum(cap_prob) =< 1
+  if (cumsum(cap_prob) > 1) {
+    print('Error: cumsum cap_prob > 1') 
+  }
 }
 
 # build interval tree of probabilities
-buildIntervalTree <- function(cap_prob) {
+buildIntervalTree <- function(cap_prob, s) {
   print('Building interval tree..')
   range_mins <- c(0, cumsum(cap_prob)) # 0 is the first min
   range_maxes <- c(cumsum(cap_prob), 1) # 1 is the final max
   ranges <- data.frame(1:(s+1), range_mins, range_maxes) # (s+1) to account for the additional range representing probability of unrecovery
-                                                        # the intervals overlap at the range values but will handle this at overlapQuery
+                                                         # the intervals overlap at the range values but will handle this at overlapQuery
   tree <- IntervalTree(data=ranges, root=list())
   return(tree)
 }

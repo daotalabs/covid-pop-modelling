@@ -1,37 +1,17 @@
 # naive 1
-s <- 3
-t <- 3
-Ns <- c(10000, 10000, 10000) # length of ns = s
-cap_prob <-
-  c(0.05, 0.05, 0.05) # length of cap_prob = s, the rest of the prob's = last prob
-
-result1 <- spas_pop_sim(Ns, s, t, cap_prob)
+spas_pop_sim(Ns=c(10000, 10000, 10000), s=3, t=3, cap_prob=c(0.05, 0.05, 0.05))
 
 # naive 2
-s <- 3
-t <- 3
-Ns <- c(10000, 10000, 10000) # length of ns = s
-cap_prob <-
-  c(0.2, 0.1, 0.05) # length of cap_prob = s, the rest of the prob's = last prob
-
-result2 <- spas_pop_sim(Ns, s, t, cap_prob)
-result2$final_table
+spas_pop_sim(Ns=c(10000, 10000, 10000), s=3, t=3, cap_prob=c(0.2, 0.1, 0.05))
 
 # naive 3
-s <- 3
-t <- 3
-Ns <- c(5000, 10000, 15000) # length of ns = s
-cap_prob <-
-  c(0.4, 0.5, 0.05) # length of cap_prob = s, the rest of the prob's = last prob
+spas_pop_sim(Ns=c(5000, 10000, 15000), s=3, t=3, cap_prob=c(0.4, 0.5, 0.05))
 
-result3 <- spas_pop_sim(Ns, s, t, cap_prob)
-result3$final_table
+# larger s=t=8
+spas_pop_sim(Ns=c(5000, 10000, 15000, 7500, 20000, 25000, 12000, 30000), s=8, t=8, cap_prob=c(0.1, 0.18, 0.075, 0.2, 0.1, 0.05, 0.15, 0.125))
+# pop est comes out very small if cap_prob is very small (pool 5: p=0.005, pop=112)
+spas_pop_sim(Ns=c(5000, 10000, 15000, 7500, 20000, 25000, 12000, 30000), s=8, t=8, cap_prob=c(0.1, 0.18, 0.075, 0.2, 0.005, 0.05, 0.15, 0.125))
 
 # t > s
-s <- 3
-t <- 5
-Ns <- c(1500, 500, 500) # length of ns = s
-cap_prob <-
-  c(0.05, 0.05, 0.05) # length of cap_prob = s, the rest of the prob's = last prob
-
-spas_pop_sim(Ns, s, t, cap_prob)
+# this isn't working properly yet for t > s, see TODO in stochastic-sim.R
+spas_pop_sim(Ns=c(5000, 1000, 15000), s=3, t=5, cap_prob=c(0.075, 0.1, 0.2))
