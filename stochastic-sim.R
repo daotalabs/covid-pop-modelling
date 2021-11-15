@@ -1,129 +1,113 @@
 library(dplyr)
 library(SPAS)
+library(parallel)
+library(foreach)
+library(doParallel)
+library(rIntervalTree)
 
-################
-# Stochastic 1
-# s = t = 3
-# n's = 10,000
-# psi_1 = 0.2, psi_2 = 0.1, psi_3 = 0.05 (capture prob.'s for stratum 1, 2, 3)
-n <- 15000
-s <- 3
-t <- 3
-psi1 <- 0.2
-psi2 <- 0.1
-psi3 <- 0.05
+spas_pop_sim <- function(Ns, s, t, cap_prob) {
+  # input validation
+  validateInput(Ns, s, t, cap_prob)
+  
+  # build interval tree of capture probabilities, will use later
+  prob_tree <- buildIntervalTree(cap_prob)
+  
+  tagged_no <- 1:s
+  m_table <- data.frame(matrix(data = 0, nrow = s, ncol = t))
+  not_rec <- data.frame(matrix(data = 0, nrow = s, ncol = 1))
+  untagged_no_by_j <- data.frame(matrix(data = 0, nrow = 1, ncol = t))
+  
+  # CHs matrices to track all fish sampled in i=x in s
+  CH <- list()
+  CH <- lapply(1:s, function(i) data.frame(matrix(data = 0, nrow = Ns[i], ncol = t+1)))
+  # TODO: do these loops in parallel?
+  for (i in 1:s) {
+    # iterate through rows in CH[[i]]
+    for (a in 1:Ns[i]) {
+      cap_1 <- runif(1)
+      # first column is whether a fish is tagged
+      CH[[i]][a, 1] <- ifelse(cap_1 > cap_prob[i], 0, 1)
+      cap_p <- runif(1)
+      # after first capture attempt a fish can go to only 1 subsequent (j >= i) recovery stratum or never recovered,
+      # do this by comparing cap_p against prob_tree here to determine which stratum j a fish goes to, or goes unrecovered
+      # DONE: account for intevals change when j > i
+      interval_no <- as.integer(overlapQuery(prob_tree, cap_p)[[1]][1]) # can't throw out of range error because cap_prob is always within range [0,1]
+      if (interval_no <= s && interval_no >= i) { # <= s because > s is unrecovered, >= i because fish can't be recovered in j < i
+        CH[[i]][a, interval_no + 1] <- 1 # fish is caught in stratum j = interval_no + 1
+      }
+    }
+    # total number of fish tagged in i=x
+    tagged_no[i] <- sum(CH[[i]]$X1)
+    
+    # calculate m's: number of tagged fish recovered in j
+    for (j in 2:(t+1)) {
+      m_table[i, j-1] <- sum(CH[[i]] %>% filter(X1 == 1) %>% select(j)) 
+    }
 
-# matrix CH1 to capture/tag and track each fish in sample 1
-# nrow is the fish population available for sampling in stratum i = 1
-# ncol = t+1
-# first col is whether a fish is captured/tagged
-# col 2 to 4 is whether the tagged fish is recovered in stratum 2 to 4
-CH1 <- data.frame(matrix(nrow = n, ncol = 4))
-colnames(CH1) <- c('tagged', 'j1', 'j2', 'j3')
-for (a in 1:n) {
-  if (runif(1) > psi1) {
-    CH1[a, 1] <- 0 # first col: a fish isn't captured/tagged
-  } else {
-    CH1[a, 1] <- 1 # first col: a fish is captured/tagged
+    # number of fish tagged but never recovered
+    not_rec[i, 1] <- tagged_no[i] - sum(m_table[i, ])
   }
-  cap_p <-
-    runif(1) # from now a fish can go to only 1 recovery stratum: 1 or 2 or 3 or never recovered
-  if (cap_p < psi3) {
-    CH1[a, 4] <- 1
-  } else if (cap_p < psi2 + psi3) {
-    CH1[a, 3] <- 1
-  } else if (cap_p < psi1 + psi2 + psi3) {
-    CH1[a, 2] <- 1
+  
+  # total number untagged and recovered in j
+  # generalize this:
+  # untagged[1] <- sum(CH[[1]][, 1]) - m_table[1, 1]
+  # untagged[2] <- sum(CH[[1]][, 2]) - m_table[1, 2] + sum(CH[[2]][, 2]) - m_table[2, 2]
+  # untagged[3] <- sum(CH[[1]][, 3]) - m_table[1, 3] + sum(CH[[2]][, 3]) - m_table[2, 3] + sum(CH[[3]][, 3]) - m_table[3, 3]
+  untagged_no <- rep(0, t)
+  # TODO: do these loops in parallel?
+  for (j in 2:(t+1)) {
+    untagged_no[j-1] <- 0
+    for (i in 1:min(j-1, s)) {
+      untagged_no[j-1] <- untagged_no[j-1] + sum(CH[[i]][, j]) - m_table[i, j-1]
+    }
   }
+  
+  # construct data table for SPAS 
+  result <- NULL
+  result$tagged_no <- tagged_no
+  result$m_table <- m_table
+  result$untagged_no <- untagged_no
+  result$not_rec <- not_rec
+  result$CH <- CH
+  
+  untagged_no <- c(untagged_no, NA)
+  final_table <- cbind(m_table, not_rec)
+  colnames(final_table)[4] <- 'X4'
+  final_table <- rbind(final_table, untagged_no)
+  result$final_table <- final_table
+  
+  # run SPAS
+  printModel <- fitSPAS(s, t, final_table)
+  return(printModel)
 }
 
-# matrix CH2 to capture/tag and track each animal in sample 2
-CH2 <- data.frame(matrix(nrow = n, ncol = 4))
-colnames(CH2) <- c('tagged', 'j1', 'j2', 'j3')
-for (a in 1:n) {
-  if (runif(1) > psi2) {
-    CH2[a, 1] <- 0
-  } else {
-    CH2[a, 1] <- 1
-  }
-  cap_p <- runif(1)
-  if (cap_p < psi3) {
-    CH2[a, 4] <- 1
-  } else if (cap_p < psi2 + psi3) {
-    CH2[a, 3] <- 1
-  }
+# fit SPAS model no pooling
+fitSPAS <- function(s, t, data_table) {
+  mod <- SPAS::SPAS.fit.model(
+    as.matrix(data_table),
+    model.id = "Stochastic simulation no pooling",
+    row.pool.in = 1:s,
+    col.pool.in = 1:t
+  )
+  return(SPAS.print.model(mod))
 }
 
-# matrix CH3 to capture/tag and track each animal in sample 3
-CH3 <- data.frame(matrix(nrow = n, ncol = 4))
-colnames(CH3) <- c('tagged', 'j1', 'j2', 'j3')
-for (a in 1:n) {
-  if (runif(1) > psi3) {
-    CH3[a, 1] <- 0
-  } else {
-    CH3[a, 1] <- 1
-  }
-  cap_p <- runif(1)
-  if (cap_p < psi3) {
-    CH3[a, 4] <- 1
-  }
+
+# TODO: make sure inputs are correct
+validateInput <- function(Ns, s, t, cap_prob) {
+  print('Validated.')
+  # length(Ns) == s
+  # s =< t
+  # length(cap_prob) == s
 }
 
-# sum up matrix columns for Table 3 (Schwartz & Taylor) values
-tagged1 <- sum(CH1[, 1], na.rm = T)
-tagged2 <- sum(CH2[, 1], na.rm = T)
-tagged3 <- sum(CH3[, 1], na.rm = T)
-
-m11 <- sum(CH1 %>% filter(tagged == 1) %>% select(j1), na.rm = T)
-m12 <- sum(CH1 %>% filter(tagged == 1) %>% select(j2), na.rm = T)
-m13 <- sum(CH1 %>% filter(tagged == 1) %>% select(j3), na.rm = T)
-
-m22 <- sum(CH2 %>% filter(tagged == 1) %>% select(j2), na.rm = T)
-m23 <- sum(CH2 %>% filter(tagged == 1) %>% select(j3), na.rm = T)
-
-m33 <- sum(CH3 %>% filter(tagged == 1) %>% select(j3), na.rm = T)
-
-# fish marked but never recovered
-not.rec1 <- tagged1 - sum(m11, m12, m13)
-not.rec2 <- tagged2 - sum(m22, m23)
-not.rec3 <- tagged3 - m33
-
-# need to figure out the numbers of recovered, untagged fish in each stratum
-# untagged1 is number of untagged fish caught in i=1
-# untagged1 is sampling from i=1 with psi1 - number of tagged fish in j=1
-# untagged2 is sampling from i=1 with psi1 + sampling from i=2 with psi2 - tagged in j=1 - tagged in j=2
-# untagged3 is sampling from i=1 with psi1 + sampling from i=2 with psi2 + sampling from i=3 with psi3 - tagged in j=1 - tagged in j=2 - tagged in j=3
-untagged1 <- sum(CH1 %>% select(j1), na.rm = T) - m11
-untagged2 <- sum(CH1 %>% select(j2), na.rm = T) + sum(CH2 %>% select(j2), na.rm = T) - m12 - m22
-untagged3 <- sum(CH1 %>% select(j3), na.rm = T) + sum(CH2 %>% select(j3), na.rm = T) + sum(CH3 %>% select(j3), na.rm = T) - m13 - m23 - m33
-
-stoc.data1 <- c(
-  m11,
-  m12,
-  m13,
-  not.rec1,
-  0,
-  m22,
-  m23,
-  not.rec2,
-  0,
-  0,
-  m33,
-  not.rec3,
-  untagged1,
-  untagged2,
-  untagged3,
-  0
-)
-stoc.data1 <- matrix(stoc.data1,
-                     nrow = 4,
-                     ncol = 4,
-                     byrow = T)
-
-stoc.mod1 <- SPAS::SPAS.fit.model(
-  stoc.data1,
-  model.id = "Stochastic simulation no pooling 1",
-  row.pool.in = 1:3,
-  col.pool.in = 1:3
-)
-SPAS.print.model(stoc.mod1)
+# build interval tree of probabilities
+buildIntervalTree <- function(cap_prob) {
+  print('Building interval tree..')
+  range_mins <- c(0, cumsum(cap_prob)) # 0 is the first min
+  range_maxes <- c(cumsum(cap_prob), 1) # 1 is the final max
+  ranges <- data.frame(1:(s+1), range_mins, range_maxes) # (s+1) to account for the additional range representing probability of unrecovery
+                                                        # the intervals overlap at the range values but will handle this at overlapQuery
+  tree <- IntervalTree(data=ranges, root=list())
+  return(tree)
+}
