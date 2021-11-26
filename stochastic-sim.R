@@ -7,7 +7,8 @@ library(rIntervalTree)
 # s - number of tagging strata;
 # t - number of recovery strata (t >= s);
 # Ns - vector of length s contains the fish population available in each tagging stratum;
-# cap_prob - vector of length s contains the capture probabilities in each recovery stratum, cumsum(cap_prob) =< 1.
+# tag_prob - vector of length s contains the capture/tagging probabilities in the tagging strata, cumsum(tag_prob) =< 1 (SPAS estimates these);
+# rec_prob - vector of length t contains the recovery probabilities in the recovery strata, cumsum(tag_prob) =< 1.
 #
 # Output:
 # SPAS.print.model output
@@ -17,12 +18,12 @@ library(rIntervalTree)
 # j indicates recovery stratum such as in CH[[i]][, j].
 
 # TODO: currently not working for s < t
-spas_pop_sim <- function(Ns, s, t, cap_prob) {
+spas_pop_sim <- function(Ns, s, t, tag_prob, rec_prob) {
   # input validation
-  validateInput(Ns, s, t, cap_prob)
+  validateInput(Ns, s, t, tag_prob, rec_prob)
   
   # build interval tree of capture probabilities, will use later for allocation of recovered fish
-  prob_tree <- buildIntervalTree(cap_prob, s)
+  prob_tree <- buildIntervalTree(rec_prob, s)
   
   # structures to store numbers for SPAS table
   tagged_no <- 1:s
@@ -38,7 +39,7 @@ spas_pop_sim <- function(Ns, s, t, cap_prob) {
     # iterate through rows in each CH[[i]]
     for (a in 1:Ns[i]) {
       # first column is whether a fish is tagged
-      CH[[i]][a, 1] <- ifelse(runif(1) > cap_prob[i], 0, 1)
+      CH[[i]][a, 1] <- ifelse(runif(1) > tag_prob[i], 0, 1)
 
       # after first capture/tagging attempt, a fish can go to only 1 subsequent (j >= i) recovery stratum or never recovered,
       # simulate this allocation by comparing cap_p against prob_tree here to determine which stratum j a fish goes to, or goes unrecovered
@@ -110,21 +111,24 @@ fitSPAS <- function(s, t, data_table) {
 
 
 # TODO: make sure inputs are correct
-validateInput <- function(Ns, s, t, cap_prob) {
+validateInput <- function(Ns, s, t, tag_prob, rec_prob) {
   # length(Ns) == s
   # s =< t
-  # length(cap_prob) == s
-  # cumsum(cap_prob) =< 1
-  if (cumsum(cap_prob) > 1) {
-    print('Error: cumsum cap_prob > 1') 
+  # length(tag_prob) == s
+  # cumsum(tag_prob) =< 1
+  if (cumsum(tag_prob) > 1) {
+    print('Error: cumsum tag_prob > 1') 
+  }
+  if (cumsum(rec_prob) > 1) {
+    print('Error: cumsum rec_prob > 1') 
   }
 }
 
-# build interval tree of probabilities
-buildIntervalTree <- function(cap_prob, s) {
+# build interval tree of capture probabilities; each fish will fall into one probability interval
+buildIntervalTree <- function(rec_prob, s) {
   print('Building interval tree..')
-  range_mins <- c(0, cumsum(cap_prob)) # 0 is the first min
-  range_maxes <- c(cumsum(cap_prob), 1) # 1 is the final max
+  range_mins <- c(0, cumsum(rec_prob)) # 0 is the first min
+  range_maxes <- c(cumsum(rec_prob), 1) # 1 is the final max
   ranges <- data.frame(1:(s+1), range_mins, range_maxes) # (s+1) to account for the additional range representing probability of unrecovery
                                                          # the intervals overlap at the range values but will handle this at overlapQuery
   tree <- IntervalTree(data=ranges, root=list())

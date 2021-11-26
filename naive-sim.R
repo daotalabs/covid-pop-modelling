@@ -61,6 +61,7 @@ naive.mod3 <- SPAS::SPAS.fit.model(
 SPAS.print.model(naive.mod3)
 
 #################
+# INCORRECT DATA TABLE
 # Naive 4
 # s = 2, t = 3
 # n's = 10,000 (number of animals available for sampling in each of 3 strata)
@@ -80,3 +81,25 @@ naive.mod4 <- SPAS::SPAS.fit.model(
 SPAS.print.model(naive.mod4)
 
 #################
+# Naive 5
+# s = 3, t = 5
+# n1 = 10,000; n2=7500; n3=15,000 (number of animals available for sampling in each of 3 strata)
+# psi1 = 0.1; psi2 = 0.2; psi3 = 0.1 (tagging capture prob. in each of s=3)
+# p1 = 0.2; p2=0.15; p3=0.05; p4=0.3; p5=0.075 (recovery capture prob. in each of t=5)
+#
+# NOTE: result estimates only 3 cap. prob's and they don't match any psi or p
+naive.data5.csv <- textConnection("
+ 200,  150,   50,  300,   75,  225
+   0,  225,   75,  450,  112,  638
+   0,    0,  225, 1350,  337, 2588
+1800, 2250, 5025, 7650, 1912,    0")
+naive.data5 <- as.matrix(read.csv(naive.data5.csv, header = FALSE))
+
+naive.mod5 <- SPAS::SPAS.fit.model(
+  naive.data5,
+  model.id = "Naive data 5 no pooling",
+  row.pool.in = 1:3,
+  col.pool.in = 1:5
+)
+SPAS.print.model(naive.mod5)
+
