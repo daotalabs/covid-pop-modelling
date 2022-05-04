@@ -1,8 +1,11 @@
+# Viet Dao
+# Last updated: Mar 22, 2022
+
 library(dplyr)
 library(SPAS)
 library(rIntervalTree)
 
-# spas_pop_sim is a function to simulate data for modelling using SPAS
+# simulateSPAS is a function to simulate data for modelling using SPAS
 # Input:
 # s - number of tagging strata;
 # t - number of recovery strata (t >= s);
@@ -18,12 +21,12 @@ library(rIntervalTree)
 # j indicates recovery stratum such as in CH[[i]][, j].
 
 # TODO: currently not working for s < t
-spas_pop_sim <- function(Ns, s, t, tag_prob, rec_prob) {
+simulateSPAS <- function(Ns, s, t, tag_prob, rec_prob) {
   # input validation
   validateInput(Ns, s, t, tag_prob, rec_prob)
   
-  # build interval tree of capture probabilities, will use later for allocation of recovered fish
-  prob_tree <- buildIntervalTree(rec_prob, s)
+  # build interval tree of recovery probabilities, will use later for allocation of recovered fish
+  prob_tree <- buildIntervalTree(rec_prob, t)
   
   # structures to store numbers for SPAS table
   tagged_no <- 1:s
@@ -78,24 +81,20 @@ spas_pop_sim <- function(Ns, s, t, tag_prob, rec_prob) {
   }
   
   # construct data table for SPAS 
-  
-  # result <- NULL
-  # result$tagged_no <- tagged_no
-  # result$m_table <- m_table
-  # result$untagged_no <- untagged_no
-  # result$not_rec <- not_rec
-  # result$CH <- CH
-  untagged_no <- c(untagged_no, NA)
   final_table <- cbind(m_table, not_rec)
   colnames(final_table)[4] <- 'X4'
-  final_table <- rbind(final_table, untagged_no)
-  # result$final_table <- final_table
-  # 
-  # return(result)
-  
-  # run SPAS
-  printModel <- fitSPAS(s, t, final_table)
-  return(printModel)
+  final_table <- rbind(final_table, c(untagged_no, NA))
+
+  result <- NULL
+  result$Ns <- Ns
+  result$tag_prob <- tag_prob
+  result$rec_prob <- rec_prob
+  result$m_table <- m_table
+  result$untagged_no <- untagged_no
+  result$not_rec <- not_rec
+  result$final_table <- final_table
+  result$model <- fitSPAS(s, t, final_table)
+  return(result)
 }
 
 # fit SPAS model no pooling
@@ -106,7 +105,7 @@ fitSPAS <- function(s, t, data_table) {
     row.pool.in = 1:s,
     col.pool.in = 1:t
   )
-  return(SPAS.print.model(mod))
+  return(mod)
 }
 
 
