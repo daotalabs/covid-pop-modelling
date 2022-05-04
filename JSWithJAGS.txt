@@ -1,0 +1,72 @@
+model {
+  #### Priors and Constraints ####
+  # Prior for Time-dependent removal-entry
+  for(j in 1:(n.occasions-1)) {
+    gamma[j] ~ dunif(0,1)
+  }
+  # Prior for Time-dependent adult survival
+  for(j in 1:(n.occasions-1)) {
+    phi[j] ~ dunif(0,1)
+  }
+  # Prior for Time-dependent adult capture
+  for(j in 1:n.occasions){
+    p[j] ~ dunif(0,1)
+  }
+  
+  #### Define State-transitions and Observation matrices ####
+  for(i in 1:M) {
+    # Define probabilities of S(j+1) given S(j)
+    # Dimension 1: state of departure
+    # Dimension 2: state of arrival
+    # Dimension 3: individual
+    # Dimension 4: time
+    for(j in 1:(n.occasions-1)) {
+      pstate[1,1,i,j] <- 1-gamma[j]
+      pstate[1,2,i,j] <- gamma[j]
+      pstate[1,3,i,j] <- 0
+      pstate[2,1,i,j] <- 0
+      pstate[2,2,i,j] <- phi[j]
+      pstate[2,3,i,j] <- (1-phi[j])
+      pstate[3,1,i,j] <- 0
+      pstate[3,2,i,j] <- 0
+      pstate[3,3,i,j] <- 1
+    }
+    
+    # Define probabilities of individual i being observed at time j given S(j)
+    for(j in 1:n.occasions) {
+      pobs[1,i,j] <- 0
+      pobs[2,i,j] <- p[j]
+      pobs[3,i,j] <- 0 
+    }
+  }
+
+  #### Likelihood ####
+  for(i in 1:M) {
+    # Dummy occasion 1 where everyone is in state 1 (not yet in population)
+    state[i,1] <- 1
+    
+    for(j in 2:n.occasions) {
+      # state of individual i at time j given previous state
+      state[i,j] ~ dcat(pstate[state[i,j-1],,i,j-1])
+      # observation of individual i at time j given current state
+      X[i,j] ~ dbern(pobs[state[i,j],i,j])
+    } 
+  }
+  
+  #### Derived Parameters ####
+  for (i in 1:M) {
+    for (j in 2:n.occassions) {
+      whenAlive[i, j-1] <- equals(state[i,j],2)
+    }
+    alive[i] <- sum(whenAlive[i,])
+  }
+  
+  for (j in 1:(n.occasions-1)) {
+    N[j] <- sum(whenAlive[,j]) # Population size at each occasion
+  }
+  
+  for (i in 1:M) {
+    z[i] <- 1-equals(alive[i],0) # if individual i was never alive, z[i]=0
+  }
+  N_super <- sum(z)
+}
