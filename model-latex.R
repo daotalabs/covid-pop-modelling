@@ -1,5 +1,5 @@
 # Viet Dao
-# Last updated: May 3, 2022
+# Last updated: May 5, 2022
 
 # Model 1 with a & b for lab test & hosp. histories
 library(dplyr)
@@ -12,6 +12,8 @@ library(basicMCMCplots) # for traceplots and density plots
 # N - population size
 # M - augmented population size
 # k - number of recapture occassions
+# a - latent variable indicating whether individual is available for capture at lab test
+# b - latent variable indicating whether individual is available for capture at hospital
 # pa - capture prob. of lab test
 # pb - capture prob. of hospitalization
 # theta1 - prob. of being available for lab test
@@ -23,6 +25,8 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   a <- matrix(NA, nrow = N, ncol = k)
   b <- matrix(NA, nrow = N, ncol = k)
   h <- matrix(NA, nrow = N, ncol = k)
+  # TODO: create partial information for a and b
+  # indicate location 1 for a and 2 for b
   for (i in 1:N) {
     for (j in 1:k) {
       if (j==1) {
@@ -34,7 +38,10 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
         b[i,j] <- rbern(1, prod(1-b[i,], na.rm=T) * theta2)
         a[i,j] <- rbern(1, prod(1-a[i,], na.rm=T) * prod(1-b[i,], na.rm=T) * theta1)
       }
-      h[i,j] <- rbern(1, a[i,j] * pa + b[i,j] * pb)
+      h[i,j] <- rbern(1, a[i,j] * pa + b[i,j] * pb) # if rbern(1, a[i,j] * pa) = 1, h[i,j] = 1
+                                                    # if rbern(1, b[i,j] * pb) = 1, h[i,j] = 2
+      # make new a and new b from h
+      # new a and new b become NA unless h=1 or 2, also know some 0s
     }
   }
   
@@ -84,7 +91,7 @@ covidCode <- nimbleCode({
       qa[i,j] <- z[i] * prod(1-a[i,1:(j-1)]) * prod(1-b[i,1:j]) * theta1
       a[i,j] ~ dbern(qa[i,j])
       qh[i,j] <- z[i] * a[i,j] * pa + z[i] * b[i,j] * pb
-      h[i,j] ~ dbern(qh[i,j])
+      h[i,j] ~ dbern(qh[i,j]) # update this
     }
   }
 })
@@ -94,7 +101,10 @@ buildModel <- function(sim, chains, iter) {
   covidConsts <- list(M = sim$M
                       ,k = sim$k)
   
-  covidData <- list(h = sim$h_aug)
+  covidData <- list(h = sim$h_aug
+                    # new a
+                    # new b
+                    )
   
   covidInits <- list(psi = runif(1,0,1)
                      ,pa = runif(1,0,1)
@@ -121,8 +131,8 @@ buildModel <- function(sim, chains, iter) {
                                        ,'pb'
                                        ,'theta1'
                                        ,'theta2'
-                                       ,'a'
-                                       ,'b'
+                                       ,'a' # new a instead
+                                       ,'b' # new b instead
                                       # ,'qa','qb','qh'
                                       ))
   return(mcmc.out)
