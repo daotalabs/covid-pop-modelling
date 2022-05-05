@@ -90,32 +90,55 @@ covidCode <- nimbleCode({
 })
 
 # buildModel(sim) runs the MCMC with the simulated history from makeHistory as input 
-buildModel <- function(sim) {
-  covidConsts <- list(M = sim$M,
-                      k = sim$k)
+buildModel <- function(sim, chains, iter) {
+  covidConsts <- list(M = sim$M
+                      ,k = sim$k)
   
-  covidData <- list(h = sim$h_aug,
-                    a = sim$a_aug,
-                    b = sim$b_aug)
+  covidData <- list(h = sim$h_aug)
   
-  covidInits <- list(psi = runif(1,0,1), 
-                     pa = runif(1,0,1),
-                     pb = runif(1,0,1),
-                     theta1 = runif(1,0,1),
-                     theta2 = runif(1,0,1),
-                     z = rep(0, covidConsts$M))
+  covidInits <- list(psi = runif(1,0,1)
+                     ,pa = runif(1,0,1)
+                     ,pb = runif(1,0,1)
+                     ,theta1 = runif(1,0,1)
+                     ,theta2 = runif(1,0,1)
+                     ,z = rep(0, covidConsts$M)
+                     ,a = sim$a_aug
+                     ,b = sim$b_aug
+                     )
   
-  mcmc.out <- nimbleMCMC(code = covidCode, 
-                         constants = covidConsts,
-                         data = covidData, 
-                         inits = covidInits,
-                         nchains = 1, 
-                         niter = 7500,
-                         nburnin = 2000,
-                         summary = TRUE, 
-                         WAIC = TRUE,
-                         monitors = c('z','psi','pa','pb','theta1','theta2'
+  mcmc.out <- nimbleMCMC(code = covidCode
+                         ,constants = covidConsts
+                         ,data = covidData
+                         ,inits = covidInits
+                         ,nchains = chains 
+                         ,niter = iter
+                         ,nburnin = 2000
+                         ,summary = TRUE 
+                         ,WAIC = TRUE
+                         ,monitors = c('z'
+                                       ,'psi'
+                                       ,'pa'
+                                       ,'pb'
+                                       ,'theta1'
+                                       ,'theta2'
+                                       ,'a'
+                                       ,'b'
                                       # ,'qa','qb','qh'
                                       ))
   return(mcmc.out)
 }
+
+# extract estimates for a_aug and b_aug from MCMC poterior samples
+extractAb <- function(mcmc.out, M, k) {
+  sep_idx <- M*k
+  summary_df <- as.data.frame.matrix(mcmc.out$summary)
+  a_aug_vec <- summary_df[1:sep_idx,]$Median # get Medians
+  b_aug_vec <- summary_df[(sep_idx+1):(2*sep_idx),]$Median
+  a_aug <- matrix(a_aug_vec, nrow=M, ncol=k)
+  b_aug <- matrix(b_aug_vec, nrow=M, ncol=k)
+  
+  result <- NULL
+  result$a_aug <- a_aug
+  result$b_aug <- b_aug
+  return(result)
+} 

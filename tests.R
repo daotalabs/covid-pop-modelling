@@ -2,6 +2,62 @@
 # Last updated: May 3, 2022
 
 ### EXPERIMENTS ###
+# estimate augmented a and b
+sim31 <- makeHistory(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.7, theta2=0.3)
+mcmc.out31 <- buildModel(sim31, chains=1, iter=20000)
+# MCMC result for one chain
+mcmc.out31$summary[c('pa'
+                           ,'pb'
+                           ,'psi'
+                           ,'theta1'
+                           ,'theta2'
+),]
+# plot posterior densities
+samplesPlot(mcmc.out31$samples[,c('pa'
+                                  ,'pb'
+                                  ,'psi'
+                                  ,'theta1'
+                                  ,'theta2'
+)]
+,traceplot=TRUE)
+
+sim31.a_aug <- extractAb(mcmc.out31, M=2000, k=5)$a_aug
+sim31.b_aug <- extractAb(mcmc.out31, M=2000, k=5)$b_aug
+# compare estimates with simulation
+# NOTE: initial values are currently simulated a & b 
+head(sim31$a_aug, 20)
+head(sim31.a_aug, 20)
+head(sim31$b_aug, 20)
+head(sim31.b_aug, 20)
+
+# last iter=12000 doesnt look converge yet
+sim32 <- makeHistory(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.3, theta2=0.3)
+mcmc.out32 <- buildModel(sim32, chains=1, iter=12000)
+# MCMC result for one chain
+mcmc.out32$summary[c('pa'
+                     ,'pb'
+                     ,'psi'
+                     ,'theta1'
+                     ,'theta2'
+),]
+# plot posterior densities
+samplesPlot(mcmc.out32$samples[,c('pa'
+                                  ,'pb'
+                                  ,'psi'
+                                  ,'theta1'
+                                  ,'theta2'
+)]
+,traceplot=TRUE)
+
+sim32.a_aug <- extractAb(mcmc.out32, M=2000, k=5)$a_aug
+sim32.b_aug <- extractAb(mcmc.out32, M=2000, k=5)$b_aug
+# compare estimates with simulation
+# NOTE: initial values are currently simulated a & b 
+head(sim32$a_aug, 20)
+head(sim32.a_aug, 20)
+head(sim32$b_aug, 20)
+head(sim32.b_aug, 20)
+
 
 # theta1=theta2=0.3
 sim1 <- makeHistory(N=1000, M=2000, k=10, pa=0.95, pb=0.85, theta1=0.3, theta2=0.3)
