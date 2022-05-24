@@ -1,17 +1,17 @@
 # Viet Dao
-# Last updated: May 5, 2022
+# Last updated: May 23, 2022
 
 # Model 1 with a & b for lab test & hosp. histories
 library(dplyr)
 library(nimble)
 library(Rlab)
-library(basicMCMCplots) # for traceplots and density plots
+library(basicMCMCplots) # for trace plots and density plots
 
 # makeHistory((N, M, k, pa, pb, theta1, theta2) simulates capture histories h[i,j]
 # Inputs:
 # N - population size
 # M - augmented population size
-# k - number of recapture occassions
+# k - number of recapture occasions
 # a - latent variable indicating whether individual is available for capture at lab test
 # b - latent variable indicating whether individual is available for capture at hospital
 # pa - capture prob. of lab test
@@ -24,7 +24,9 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   
   a <- matrix(NA, nrow = N, ncol = k)
   b <- matrix(NA, nrow = N, ncol = k)
-  h <- matrix(NA, nrow = N, ncol = k)
+  h <- matrix(0, nrow = N, ncol = k)
+  # obs_a <- matrix(NA, nrow = N, ncol = k)
+  # obs_b <- matrix(NA, nrow = N, ncol = k)
   # TODO: create partial information for a and b
   # indicate location 1 for a and 2 for b
   for (i in 1:N) {
@@ -38,12 +40,22 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
         b[i,j] <- rbern(1, prod(1-b[i,], na.rm=T) * theta2)
         a[i,j] <- rbern(1, prod(1-a[i,], na.rm=T) * prod(1-b[i,], na.rm=T) * theta1)
       }
-      h[i,j] <- rbern(1, a[i,j] * pa + b[i,j] * pb) # if rbern(1, a[i,j] * pa) = 1, h[i,j] = 1
-                                                    # if rbern(1, b[i,j] * pb) = 1, h[i,j] = 2
+      # h[i,j] <- rbern(1, a[i,j] * pa + b[i,j] * pb) 
       # make new a and new b from h
       # new a and new b become NA unless h=1 or 2, also know some 0s
+      if (rbern(1, a[i,j] * pa) == 1) { 
+        h[i,j] <- 1 
+      }
+      if (rbern(1, b[i,j] * pb) == 1) { 
+        h[i,j] <- 2 
+      } 
     }
   }
+  
+  # populate obs_a and obs_b as much as possible 
+  obs_ab <- h %>% apply(1, populateRowObs_ab) %>% t()
+  obs_a <- obs_ab[,1:k]
+  obs_b <- obs_ab[,(k+1):(2*k)]
   
   result <- NULL
   result$N <- N
@@ -53,13 +65,63 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   result$pb <- pb
   result$theta1 <- theta1
   result$theta2 <- theta2
-  result$h <- h # h may include all-zeros; realistically it doesn't
+  result$h <- h 
   result$a <- a
   result$b <- b
+  result$obs_a <- obs_a
+  result$obs_b <- obs_b
   result$h_aug <- rbind(h, matrix(0, nrow = M-N, ncol = k))
   result$a_aug <- rbind(a, matrix(0, nrow = M-N, ncol = k))
   result$b_aug <- rbind(b, matrix(0, nrow = M-N, ncol = k))
   return(result)
+}
+
+populateRowObs_ab <- function(h_row) {
+  k <- length(h_row)
+  # for h that looks like
+  # [1,]    0    1    2    0    0
+  # make other positions 0s for obs_a and obs_b
+  if (sum(h_row) == 3) {
+    h_row_1_idx <- which(h_row == 1)
+    h_row_2_idx <- which(h_row == 2)
+    
+    obs_a_row <- rep(0, k)
+    obs_a_row[h_row_1_idx] <- 1
+    
+    obs_b_row <- rep(0, k)
+    obs_b_row[h_row_2_idx] <- 1
+    }
+  # for h that looks like
+  # [2,]    0    0    1    0    0
+  # make other positions 0s for obs_a and make prior positions 0s for obs_b
+  else if (sum(h_row) == 1) {
+    h_row_1_idx <- which(h_row == 1)
+    
+    obs_a_row <- rep(0, k)
+    obs_a_row[h_row_1_idx] <- 1
+    
+    obs_b_row <- rep(NA, k)
+    obs_b_row[1:h_row_1_idx] <- 0
+    }
+  # for h that looks like
+  # [3,]    0    0    2    0    0
+  # make subsequent positions 0s for obs_a and make other positions 0s for obs_b
+  else if (sum(h_row) == 2) {
+    h_row_2_idx <- which(h_row == 2)
+    
+    obs_a_row <- rep(NA, k)
+    obs_a_row[h_row_2_idx:k] <- 0
+    
+    obs_b_row <- rep(0, k)
+    obs_b_row[h_row_2_idx] <- 1
+    }
+  else {
+    obs_a_row <- rep(NA, k)
+    obs_b_row <- rep(NA, k)
+  }
+  
+  obs_ab <- cbind(obs_a_row, obs_b_row)
+  return(obs_ab)
 }
 
 # covidCode specifies the nimble model

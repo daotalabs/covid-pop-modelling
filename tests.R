@@ -1,7 +1,15 @@
 # Viet Dao
-# Last updated: May 3, 2022
+# Last updated: May 23, 2022
 
 ### EXPERIMENTS ###
+# print out partial obs_a obs_b
+res <- makeHistory(12,12,5,1,1,0.4,0.2)
+res$obs_a
+res$obs_b
+res$h
+
+
+
 # estimate augmented a and b
 sim31 <- makeHistory(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.7, theta2=0.3)
 mcmc.out31 <- buildModel(sim31, chains=1, iter=20000)
