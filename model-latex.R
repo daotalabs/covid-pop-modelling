@@ -7,7 +7,7 @@ library(nimble)
 library(Rlab)
 library(basicMCMCplots) # for trace plots and density plots
 
-# makeHistory((N, M, k, pa, pb, theta1, theta2) simulates capture histories h[i,j]
+# makeHistory(N, M, k, pa, pb, theta1, theta2) simulates capture histories h[i,j]
 # Inputs:
 # N - population size
 # M - augmented population size
@@ -25,10 +25,7 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   a <- matrix(NA, nrow = N, ncol = k)
   b <- matrix(NA, nrow = N, ncol = k)
   h <- matrix(0, nrow = N, ncol = k)
-  # obs_a <- matrix(NA, nrow = N, ncol = k)
-  # obs_b <- matrix(NA, nrow = N, ncol = k)
-  # TODO: create partial information for a and b
-  # indicate location 1 for a and 2 for b
+
   for (i in 1:N) {
     for (j in 1:k) {
       if (j==1) {
@@ -40,9 +37,8 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
         b[i,j] <- rbern(1, prod(1-b[i,], na.rm=T) * theta2)
         a[i,j] <- rbern(1, prod(1-a[i,], na.rm=T) * prod(1-b[i,], na.rm=T) * theta1)
       }
-      # h[i,j] <- rbern(1, a[i,j] * pa + b[i,j] * pb) 
-      # make new a and new b from h
-      # new a and new b become NA unless h=1 or 2, also know some 0s
+      
+      # indicate capture by 1 for a and recapture by 2 for b
       if (rbern(1, a[i,j] * pa) == 1) { 
         h[i,j] <- 1 
       }
@@ -76,6 +72,8 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   return(result)
 }
 
+# populateRowObs_ab(h_row) creates observed/real obs_a and obs_b from each row in history h
+# the presence and positions of 1 and 2 in h determine what's in obs_a and obs_b
 populateRowObs_ab <- function(h_row) {
   k <- length(h_row)
   # for h that looks like
