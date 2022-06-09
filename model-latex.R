@@ -18,13 +18,13 @@ library(basicMCMCplots) # for trace plots and density plots
 # pb - capture prob. of hospitalization
 # theta1 - prob. of being available for lab test
 # theta2 - prob. of being available for hospitalization
-
 makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   set.seed(5)
   
   a <- matrix(NA, nrow = N, ncol = k)
   b <- matrix(NA, nrow = N, ncol = k)
   h <- matrix(0, nrow = N, ncol = k)
+  h_2 <- matrix(0, nrow = N, ncol = k)
 
   for (i in 1:N) {
     for (j in 1:k) {
@@ -40,16 +40,18 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
       
       # indicate capture by 1 for a and recapture by 2 for b
       if (rbern(1, a[i,j] * pa) == 1) { 
-        h[i,j] <- 1 
+        h_2[i,j] <- 1 
+        h[i,j] <- 1
       }
       if (rbern(1, b[i,j] * pb) == 1) { 
-        h[i,j] <- 2 
+        h_2[i,j] <- 2 
+        h[i,j] <- 1
       } 
     }
   }
   
   # populate obs_a and obs_b as much as possible 
-  obs_ab <- h %>% apply(1, populateRowObs_ab) %>% t()
+  obs_ab <- h_2 %>% apply(1, populateRowObs_ab) %>% t()
   obs_a <- obs_ab[,1:k]
   obs_b <- obs_ab[,(k+1):(2*k)]
   
@@ -62,11 +64,15 @@ makeHistory <- function(N, M, k, pa, pb, theta1, theta2) {
   result$theta1 <- theta1
   result$theta2 <- theta2
   result$h <- h 
+  result$h_2 <- h_2
   result$a <- a
   result$b <- b
   result$obs_a <- obs_a
+  result$obs_a_aug <- rbind(obs_a, matrix(NA, nrow = M-N, ncol = k))
   result$obs_b <- obs_b
+  result$obs_b_aug <- rbind(obs_b, matrix(NA, nrow = M-N, ncol = k))
   result$h_aug <- rbind(h, matrix(0, nrow = M-N, ncol = k))
+  result$h_2_aug <- rbind(h_2, matrix(0, nrow = M-N, ncol = k))
   result$a_aug <- rbind(a, matrix(0, nrow = M-N, ncol = k))
   result$b_aug <- rbind(b, matrix(0, nrow = M-N, ncol = k))
   return(result)
@@ -138,10 +144,10 @@ covidCode <- nimbleCode({
     # j=1
     # force b=0 for j=1
     qb[i,1] <- 0
-    b[i,1] ~ dbern(qb[i,1])
+    b[i,1] ~ dbern(qb[i,1]) # = 0
     qa[i,1] <- z[i] * theta1
     a[i,1] ~ dbern(qa[i,1])
-    qh[i,1] <- z[i] * a[i,1] * pa + z[i] * b[i,1] * pb
+    qh[i,1] <- z[i] * a[i,1] * pa + z[i] * b[i,1] * pb # = 0
     h[i,1] ~ dbern(qh[i,1])
     
     # j>=2
@@ -151,7 +157,7 @@ covidCode <- nimbleCode({
       qa[i,j] <- z[i] * prod(1-a[i,1:(j-1)]) * prod(1-b[i,1:j]) * theta1
       a[i,j] ~ dbern(qa[i,j])
       qh[i,j] <- z[i] * a[i,j] * pa + z[i] * b[i,j] * pb
-      h[i,j] ~ dbern(qh[i,j]) # update this
+      h[i,j] ~ dbern(qh[i,j]) 
     }
   }
 })
@@ -162,8 +168,8 @@ buildModel <- function(sim, chains, iter) {
                       ,k = sim$k)
   
   covidData <- list(h = sim$h_aug
-                    # new a
-                    # new b
+                    ,a = sim$obs_a_aug
+                    ,b = sim$obs_b_aug
                     )
   
   covidInits <- list(psi = runif(1,0,1)
@@ -172,8 +178,8 @@ buildModel <- function(sim, chains, iter) {
                      ,theta1 = runif(1,0,1)
                      ,theta2 = runif(1,0,1)
                      ,z = rep(0, covidConsts$M)
-                     ,a = sim$a_aug
-                     ,b = sim$b_aug
+                     # ,a = sim$obs_a_aug
+                     # ,b = sim$b_aug
                      )
   
   mcmc.out <- nimbleMCMC(code = covidCode
@@ -191,14 +197,14 @@ buildModel <- function(sim, chains, iter) {
                                        ,'pb'
                                        ,'theta1'
                                        ,'theta2'
-                                       ,'a' # new a instead
-                                       ,'b' # new b instead
+                                       ,'a'
+                                       ,'b'
                                       # ,'qa','qb','qh'
                                       ))
   return(mcmc.out)
 }
 
-# extract estimates for a_aug and b_aug from MCMC poterior samples
+# extract estimates for a_aug and b_aug from MCMC posterior samples
 extractAb <- function(mcmc.out, M, k) {
   sep_idx <- M*k
   summary_df <- as.data.frame.matrix(mcmc.out$summary)

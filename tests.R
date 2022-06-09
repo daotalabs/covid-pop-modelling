@@ -3,12 +3,23 @@
 
 ### EXPERIMENTS ###
 # print out partial obs_a obs_b
-res <- makeHistory(12,12,5,1,1,0.4,0.2)
+res <- makeHistory(N=500,M=1000,5,pa=0.6,pb=0.8,theta1=0.4,theta2=0.6)
 res$obs_a
 res$obs_b
 res$h
-
-
+mcmc.out <- buildModel(res, chains=1, iter=10000)
+# MCMC result for one chain
+mcmc.out$summary[c('pa'
+                  ,'pb'
+                  ,'psi'
+                  ,'theta1'
+                  ,'theta2'
+                
+),]
+samplesPlot(mcmc.out$samples[,c('pa')]
+,traceplot=TRUE)
+sim.a_aug <- extractAb(mcmc.out, M=24, k=5)$a_aug
+sim.b_aug <- extractAb(mcmc.out, M=24, k=5)$b_aug
 
 # estimate augmented a and b
 sim31 <- makeHistory(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.7, theta2=0.3)
