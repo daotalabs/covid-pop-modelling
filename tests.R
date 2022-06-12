@@ -1,7 +1,38 @@
 # Viet Dao
-# Last updated: May 3, 2022
+# Last updated: May 23, 2022
 
 ### EXPERIMENTS ###
+# print out partial obs_a obs_b
+res <- makeHistory(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.7, theta2=0.3)
+res$obs_a
+res$obs_b
+res$h
+
+start_time <- Sys.time()
+mcmc.out <- buildModel(res, chains=1, iter=20000)
+end_time <- Sys.time()
+end_time - start_time
+
+# MCMC result for one chain
+mcmc.out$summary[c('pa'
+                  ,'pb'
+                  ,'psi'
+                  ,'theta1'
+                  ,'theta2'
+                
+),]
+# Mean    Median    St.Dev. 95%CI_low 95%CI_upp
+# pa     0.9697692 0.9708393 0.01439722 0.9391133 0.9941982
+# pb     0.8606580 0.8584738 0.04794272 0.7747451 0.9621275
+# psi    0.4963615 0.4962926 0.01250491 0.4718958 0.5207061
+# theta1 0.6840863 0.6842855 0.01755357 0.6486825 0.7175415
+# theta2 0.3018353 0.3013564 0.02394127 0.2570327 0.3485501
+
+samplesPlot(mcmc.out$samples[,c('pa')]
+,traceplot=TRUE)
+sim.a_aug <- extractAb(mcmc.out, M=24, k=5)$a_aug
+sim.b_aug <- extractAb(mcmc.out, M=24, k=5)$b_aug
+
 # estimate augmented a and b
 sim31 <- makeHistory(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.7, theta2=0.3)
 mcmc.out31 <- buildModel(sim31, chains=1, iter=20000)
