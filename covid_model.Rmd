@@ -1,7 +1,7 @@
 ---
 title: "Covid model simulation"
 author: "Viet Dao"
-date: "2022-08-29"
+date: "Last compiled on `r format(Sys.time(), '%d %B, %Y')`"
 output: html_notebook
 ---
 
@@ -19,8 +19,8 @@ source(here::here("R", "populate_row_obs_ab.R"))
 ```
 
 ### Nimble model
+`covidCode` specifies the `nimble` model.
 ```{r}
-# covidCode specifies the nimble model
 covidCode <- nimble::nimbleCode({
   # uniform priors
   psi ~ dunif(0,1) 
@@ -53,10 +53,12 @@ covidCode <- nimble::nimbleCode({
     }
   }
 })
+```
 
-# build_model() runs the MCMC with the simulated history from make_history() as input 
+`build_model()` runs the MCMC with the simulated history from `make_history()` as input.
+```{r}
 build_model <- function(sim, chains, iter) {
-  # nimble doesn't like snake_case for some reason
+  # nimble doesn't like snake_case in object names for some reason
   covidConsts <- list(M = sim$M,
                       k = sim$k)
   
@@ -71,7 +73,7 @@ build_model <- function(sim, chains, iter) {
                      theta2 = runif(1,0,1),
                      z = rep(0, covidConsts$M))
   
-  mcmc.out <- nimble::nimbleMCMC(code = covidCode,
+  mcmc.out <- nimbleMCMC(code = covidCode,
                                  constants = covidConsts,
                                  data = covidData,
                                  inits = covidInits,
@@ -87,7 +89,6 @@ build_model <- function(sim, chains, iter) {
 
 ### Experiments
 ```{r}
-# June 2022
 sim0622 <- make_history(N=1000, M=2000, k=5, pa=0.95, pb=0.85, theta1=0.7, theta2=0.3)
 
 # see how the result looks
