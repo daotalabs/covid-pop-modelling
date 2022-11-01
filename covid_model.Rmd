@@ -74,15 +74,15 @@ build_model <- function(sim, chains, iter) {
                      z = rep(0, covidConsts$M))
   
   mcmc.out <- nimbleMCMC(code = covidCode,
-                                 constants = covidConsts,
-                                 data = covidData,
-                                 inits = covidInits,
-                                 nchains = chains,
-                                 niter = iter,
-                                 nburnin = 2000,
-                                 summary = TRUE, 
-                                 WAIC = TRUE,
-                                 monitors = c("z", "psi", "pa", "pb", "theta1", "theta2", "a", "b"))
+                         constants = covidConsts,
+                         data = covidData,
+                         inits = covidInits,
+                         nchains = chains,
+                         niter = iter,
+                         nburnin = 2000,
+                         summary = TRUE, 
+                         WAIC = TRUE,
+                         monitors = c("z", "psi", "pa", "pb", "theta1", "theta2", "a", "b"))
   return(mcmc.out)
 }
 ```

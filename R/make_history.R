@@ -3,8 +3,8 @@
 #' @param N population size
 #' @param M augmented population size
 #' @param k number of capture occasions
-#' @param pa capture probability of lab test
-#' @param pb capture probability of lab test hospitalization
+#' @param pa capture/(detection?) probability of lab test
+#' @param pb capture probability of hospitalization
 #' @param theta1 probability of being available for lab test
 #' @param theta2 probability of being available for hospitalization
 #'
