@@ -59,16 +59,17 @@ make_history <- function(N, M, k, theta1, pa, theta2, pb) {
   obs_a <- obs_ab[,1:k]
   obs_b <- obs_ab[,(k+1):(2*k)]
   n <- sum(rowSums(h, na.rm = T) > 0) # number captured
+  print(paste("n =", n))
   n_2 <- sum(h_2 == 2, na.rm = T) # number recaptured
 
   #' augmented histories contain more NA rows for obs_a, obs_b and 0s for h
   obs_a_aug <- rbind(obs_a, matrix(NA, nrow = M - N, ncol = k))
   obs_b_aug <- rbind(obs_b, matrix(NA, nrow = M - N, ncol = k))
-  h_aug <- rbind(h, matrix(0, nrow = M - N, ncol = k))
+  h_aug <- rbind(h, matrix(0, nrow = M - n, ncol = k))
   
   z_init <- rowSums(h_aug)
   z_init[z_init == 0] <- NA
-  z_init[z_init > 0] <- 1
+  z_init[z_init > 1] <- 1
   
   result <- NULL
   result$N <- N

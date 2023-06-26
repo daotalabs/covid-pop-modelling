@@ -1,11 +1,11 @@
 #!/bin/sh
 
 #SBATCH -J simulation
-#SBATCH --array=1-625
-#SBATCH --time=3-00:00:00
+#SBATCH --array=1-2
+#SBATCH --time=12:00:00
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=64G
+#SBATCH --mem=32G
 #SBATCH --mail-user=vietdao@uvic.ca
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --output=slurm-%A_%a.out

@@ -5,8 +5,8 @@ library(readr)
 
 ## Define simulation parameters
 param_matrix <- crossing(
-  N = 10000,
-  M = 20000,
+  N = 500,
+  M = 1000,
   k = 14,
   theta1 = c(0.05, 0.1, 0.15, 0.2, 0.25),
   pa = c(0.8, 0.85, 0.9, 0.95, 0.99),

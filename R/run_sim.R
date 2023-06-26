@@ -77,7 +77,7 @@ write_sim_data(task_id_str,
                sim_out$h_aug, sim_out$h_2, sim_out$obs_a_aug, sim_out$obs_b_aug)
 
 #-------------------- Call nimble from R -----------------------#
-mcmc_out <- build_nimble_model(sim_out, chains = 1, iter = 100000, burnin = 50000)
+mcmc_out <- build_nimble_model(sim_out, chains = 1, iter = 25000, burnin = 10000)
 
 if (is.null(mcmc_out)) {
   print("Error: model failed to work")
